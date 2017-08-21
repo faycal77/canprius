@@ -5,6 +5,7 @@
 #-------------------------------------------------
 
 QT       += core gui
+QT       += serialbus network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -24,6 +25,15 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+        mainwindow.cpp \
+    canbusmanager.cpp \
+    canconnectionconfig.cpp \
+    canbusconnectiondialog.cpp \
+    messagelogger.cpp
 
-HEADERS  += mainwindow.h
+HEADERS  += mainwindow.h \
+    canbusmanager.h \
+    canconnectionconfig.h \
+    canbusconnectiondialog.h \
+    messagelogger.h \
+    priusodbcodes.h
