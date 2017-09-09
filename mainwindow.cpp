@@ -8,13 +8,17 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QCanBus>
+#include <QDateTime>
 #include <QDebug>
 #include <QDesktopWidget>
 #include <QDockWidget>
+#include <QHeaderView>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPlainTextEdit>
+#include <QPushButton>
+#include <QSizePolicy>
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QToolBar>
@@ -37,13 +41,42 @@ void MainWindow::initApplication() {
                      QApplication::desktop()->availableGeometry().height()));
 }
 
-void MainWindow::createWidgets() {
-  m_framesTabWidget = new QTabWidget;
+void MainWindow::createDataTabWidget() {
   m_dataFrames = new QTableWidget;
-  m_errorsFrames = new QTableWidget;
+  m_dataFrames->setShowGrid(false);
+  m_dataFrames->setColumnCount(4);
+  QStringList labels;
+  labels << QString("Id") << QString("Date") << QString("Time stamp")
+         << QString("Received data");
+  m_dataFrames->setHorizontalHeaderLabels(labels);
+  m_dataFrames->horizontalHeader()->setSectionResizeMode(
+      QHeaderView::ResizeToContents);
+}
 
-  m_framesTabWidget->addTab(m_dataFrames, QString("Data frames"));
-  m_framesTabWidget->addTab(m_errorsFrames, QString("Error frames"));
+void MainWindow::createErrorTabWidget() { m_errorsFrames = new QTableWidget; }
+
+void MainWindow::createFramesTabWidget() {
+  m_clearDataFrameButton = new QPushButton("clear");
+  m_clearErrorsFrameButton = new QPushButton("clear");
+  m_clearDataFrameButton->setIcon(QIcon::fromTheme("edit-clear"));
+  m_clearErrorsFrameButton->setIcon(QIcon::fromTheme("edit-clear"));
+  m_clearDataFrameButton->setFlat(true);
+  m_clearErrorsFrameButton->setFlat(true);
+  m_framesTabWidget = new QTabWidget;
+  m_framesTabWidget->addTab(m_dataFrames, QIcon::fromTheme("network-wired"),
+                            QString("Data frames"));
+  m_framesTabWidget->tabBar()->setTabButton(
+      0, QTabBar::ButtonPosition::RightSide, m_clearDataFrameButton);
+  m_framesTabWidget->addTab(m_errorsFrames, QIcon::fromTheme("dialog-error"),
+                            QString("Error frames"));
+  m_framesTabWidget->tabBar()->setTabButton(
+      1, QTabBar::ButtonPosition::RightSide, m_clearErrorsFrameButton);
+}
+
+void MainWindow::createWidgets() {
+  createDataTabWidget();
+  createErrorTabWidget();
+  createFramesTabWidget();
   m_logPlainTextEdit = new QPlainTextEdit;
   m_logPlainTextEdit->setReadOnly(true);
   m_logPlainTextEdit->setTextInteractionFlags(
@@ -61,11 +94,14 @@ void MainWindow::createWidgets() {
 }
 
 void MainWindow::createActions() {
-  m_canBusActions << new QAction(tr("Connect")) << new QAction(tr("Disconnect"))
-                  << new QAction(tr("Exit"));
+  m_canBusActions
+      << new QAction(QIcon::fromTheme("network-wireless"), tr("Connect"))
+      << new QAction(QIcon::fromTheme("window-close"), tr("Disconnect"))
+      << new QAction(QIcon::fromTheme("application-exit"), tr("Exit"));
 
   m_settingActions = new QActionGroup(this);
-  m_settingActions->addAction(new QAction(tr("Connection")));
+  m_settingActions->addAction(
+      new QAction(QIcon::fromTheme("preferences-system"), tr("Connection")));
   m_canBusActions[MainWindow::Connect]->setEnabled(false);
   m_canBusActions[MainWindow::Disconnect]->setEnabled(false);
 }
@@ -79,6 +115,14 @@ void MainWindow::createConnections() {
           &MainWindow::handleDisconnectionAction);
   connect(m_canBusActions[MainWindow::Exit], &QAction::triggered, this,
           &MainWindow::close);
+  connect(m_clearDataFrameButton, &QPushButton::clicked, this,
+          &MainWindow::clearDataFrame);
+  connect(m_clearErrorsFrameButton, &QPushButton::clicked, this,
+          &MainWindow::clearErrorsFrame);
+
+  connect(m_clearErrorsFrameButton, &QPushButton::clicked, m_errorsFrames,
+          &QTableWidget::clearContents);
+
   if (m_logger) {
     connect(m_logger, &MessageLogger::logMessage, m_logPlainTextEdit,
             &QPlainTextEdit::appendPlainText);
@@ -86,9 +130,8 @@ void MainWindow::createConnections() {
 }
 
 void MainWindow::createMenu() {
-  QMenu *canMenu = menuBar()->addMenu(tr("Can actions"));
+  QMenu *canMenu = menuBar()->addMenu(tr("CAN actions"));
   canMenu->addActions(m_canBusActions);
-
   QMenu *configuration = menuBar()->addMenu(tr("Settings"));
   configuration->addActions(m_settingActions->actions());
 }
@@ -106,10 +149,11 @@ void MainWindow::handleSettingActions(QAction *action) {
       connect(m_canBusManager, &CanBusManager::errorOccurred, this,
               &MainWindow::handleError);
 
-      m_canBusManager->initCanDevice(
-          d->canConnectionConfig().pluginName(),
-          d->canConnectionConfig().deviceInterface());
+      m_canBusManager->initCanDevice(d->canConnectionConfig().pluginName(),
+                                     d->canConnectionConfig().deviceInterface(),
+                                     d->canConnectionConfig().FrameFormat());
     }
+    delete d;
   }
 }
 
@@ -125,35 +169,67 @@ void MainWindow::handleConnectionAction() {
   }
 }
 
-void MainWindow::handleDisconnectionAction() { m_canBusManager->disconnect(); }
+void MainWindow::handleDisconnectionAction() {
+  m_canBusManager->disconnect();
+  m_logPlainTextEdit->clear();
+}
+
+void MainWindow::clearDataFrame() { m_dataFrames->setRowCount(0); }
+
+void MainWindow::clearErrorsFrame() { m_errorsFrames->setRowCount(0); }
 
 void MainWindow::handleErrorFrame(const QCanBusFrame &errorFrame) {
   qWarning() << errorFrame.frameId() << errorFrame.frameType()
              << errorFrame.isValid() << errorFrame.timeStamp().microSeconds()
-             << errorFrame.payload();
+             << errorFrame.payload().toHex();
 }
 
 void MainWindow::handleDataFrame(const QCanBusFrame &dataFrame) {
+  if (!dataFrame.isValid())
+    return;
+
+  QTableWidgetItem *messageItem = new QTableWidgetItem;
+  QTableWidgetItem *idItem = new QTableWidgetItem;
+  QTableWidgetItem *dateItem = new QTableWidgetItem;
+  QTableWidgetItem *timeItem = new QTableWidgetItem;
+  QString itemData;
+
+  dateItem->setData(Qt::DisplayRole, QDateTime::currentDateTime());
+  bool unreconized = false;
+  idItem->setIcon(QIcon::fromTheme("help-about"));
+
   switch (dataFrame.frameId()) {
-  case PriusDataODBCode::DoorsId:
-    qInfo() << " Doors : " << dataFrame.payload();
+  case QPriusCanCode::DoorsId:
+    itemData += " Doors : ";
+    itemData += dataFrame.payload().toHex('.').toUpper();
+    messageItem->setData(Qt::DisplayRole, itemData);
+    idItem->setData(Qt::DisplayRole, QPriusCanCode::DoorsId);
+    timeItem->setData(Qt::DisplayRole, dataFrame.timeStamp().microSeconds());
     break;
-  case PriusDataODBCode::BatteryVolyageId:
-    qInfo() << " Battery : " << dataFrame.payload();
+  case QPriusCanCode::BatteryVolyageId:
+    itemData += " Battery : ";
     break;
-  case PriusDataODBCode::BatterySocId:
-    qInfo() << " Battery Soc : " << dataFrame.payload();
+  case QPriusCanCode::BatterySocId:
+    itemData += " Battery Soc : ";
     break;
-  case PriusDataODBCode::BrakesId:
-    qInfo() << " Brake : " << dataFrame.payload();
+  case QPriusCanCode::BrakesId:
+    itemData += " Brake : ";
     break;
-  case PriusDataODBCode::EngineTemperatureId:
-    qInfo() << " Temeprature : " << dataFrame.payload();
+  case QPriusCanCode::EngineTemperatureId:
+    itemData += " Temeprature : ";
     break;
   default:
-    qInfo() << dataFrame.frameId() << dataFrame.frameType()
-            << dataFrame.isValid() << dataFrame.timeStamp().microSeconds()
-            << dataFrame.payload();
+    unreconized = true;
+  }
+  // add the item to the data table
+  if (!unreconized) {
+    m_dataFrames->insertRow(m_dataFrames->rowCount());
+    m_dataFrames->setItem(m_dataFrames->rowCount() - 1, 0, idItem);
+    m_dataFrames->setItem(m_dataFrames->rowCount() - 1, 1, dateItem);
+    m_dataFrames->setItem(m_dataFrames->rowCount() - 1, 2, timeItem);
+    m_dataFrames->setItem(m_dataFrames->rowCount() - 1, 3, messageItem);
+
+    m_dataFrames->scrollToBottom();
   }
 }
 

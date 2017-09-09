@@ -11,7 +11,9 @@ class CanBusManager : public QObject {
   Q_OBJECT
 public:
   CanBusManager(QObject *parent = Q_NULLPTR);
-  bool initCanDevice(const QString &plugin, const QString &interfaceName);
+  bool initCanDevice(const QString &plugin, const QString &interfaceName,
+                     QCanBusDevice::Filter::FormatFilter filterFormat =
+                         QCanBusDevice::Filter::FormatFilter::MatchBaseFormat);
   bool connect();
   void disconnect();
 

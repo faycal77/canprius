@@ -24,6 +24,7 @@ signals:
 
 public slots:
   void okButtonClicked();
+  void setCheckedFormat();
 
 private:
   void createWidgets();

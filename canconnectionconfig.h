@@ -15,13 +15,13 @@ public:
   QString deviceInterface() const;
   void setDeviceInterface(const QString &deviceInterface);
 
-  QCanBusDevice::Filter FrameFormat() const;
-  void setFrameFormat(const QCanBusDevice::Filter &FrameFormat);
+  QCanBusDevice::Filter::FormatFilter FrameFormat() const;
+  void setFrameFormat(const QCanBusDevice::Filter::FormatFilter &frameFormat);
 
 private:
   QString m_pluginName;
   QString m_deviceInterface;
-  QCanBusDevice::Filter m_FrameFormat;
+  QCanBusDevice::Filter::FormatFilter m_FrameFormat;
 };
 }
 

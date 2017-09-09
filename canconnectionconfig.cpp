@@ -18,11 +18,11 @@ void CanConnectionConfig::setDeviceInterface(const QString &deviceInterface) {
   m_deviceInterface = deviceInterface;
 }
 
-QCanBusDevice::Filter CanConnectionConfig::FrameFormat() const {
+QCanBusDevice::Filter::FormatFilter CanConnectionConfig::FrameFormat() const {
   return m_FrameFormat;
 }
 
 void CanConnectionConfig::setFrameFormat(
-    const QCanBusDevice::Filter &FrameFormat) {
-  m_FrameFormat = FrameFormat;
+    const QCanBusDevice::Filter::FormatFilter &frameFormat) {
+  m_FrameFormat = frameFormat;
 }

@@ -11,6 +11,7 @@ class QTabWidget;
 class QTableWidget;
 class QPlainTextEdit;
 class QCanBusFrame;
+class QPushButton;
 
 namespace QPriusCan {
 
@@ -38,6 +39,8 @@ public slots:
   void handleSettingActions(QAction *action);
   void handleConnectionAction();
   void handleDisconnectionAction();
+  void clearDataFrame();
+  void clearErrorsFrame();
   // Can Data/Error slots
   void handleDataFrame(const QCanBusFrame &dataFrame);
   void handleErrorFrame(const QCanBusFrame &errorFrame);
@@ -47,9 +50,18 @@ public slots:
   void canBusConnected(bool connected);
 
 protected:
+  void createDataTabWidget();
+
+  void createErrorTabWidget();
+
+  void createFramesTabWidget();
+
 private:
   QList<QAction *> m_canBusActions;
   QActionGroup *m_settingActions;
+
+  QPushButton *m_clearDataFrameButton;
+  QPushButton *m_clearErrorsFrameButton;
 
   CanBusManager *m_canBusManager;
   QTabWidget *m_framesTabWidget;

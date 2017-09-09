@@ -28,6 +28,21 @@ void CanBusConnectionDialog::okButtonClicked() {
   accept();
 }
 
+void CanBusConnectionDialog::setCheckedFormat() {
+  QCanBusDevice::Filter::FormatFilter filterFormat;
+  if (m_radioButtonBase->isChecked()) {
+    filterFormat = QCanBusDevice::Filter::FormatFilter::MatchBaseFormat;
+  }
+  if (m_radioButtonExtented->isChecked()) {
+    filterFormat = QCanBusDevice::Filter::FormatFilter::MatchExtendedFormat;
+  }
+  if (m_radioButtonBaseAndExtented->isChecked()) {
+    filterFormat =
+        QCanBusDevice::Filter::FormatFilter::MatchBaseAndExtendedFormat;
+  }
+  m_canConnectionConfig.setFrameFormat(filterFormat);
+}
+
 void CanBusConnectionDialog::createWidgets() {
   m_canFormatGroupBox = new QGroupBox(tr("Can bus frame format"));
   m_radioButtonBase = new QRadioButton(tr("Base"));
@@ -85,11 +100,16 @@ void CanBusConnectionDialog::initWidgets() {
   m_widgetButtons->button(QDialogButtonBox::Ok)
       ->setEnabled(m_canPluginComboxBox->count() &&
                    m_canInterfaceComboxBox->count());
+  if (!m_canInterfaceComboxBox->count())
+    qCritical() << tr("No CAN device seems to be connected to the host");
 }
 
 void CanBusConnectionDialog::createConnections() {
   connect(m_widgetButtons, &QDialogButtonBox::rejected, this,
           &CanBusConnectionDialog::close);
+
+  connect(m_canFormatGroupBox, &QGroupBox::clicked, this,
+          &CanBusConnectionDialog::setCheckedFormat);
 
   connect(m_widgetButtons->button(QDialogButtonBox::Ok), &QPushButton::clicked,
           this, &CanBusConnectionDialog::okButtonClicked);

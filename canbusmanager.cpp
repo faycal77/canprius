@@ -7,8 +7,9 @@ using namespace QPriusCan;
 
 CanBusManager::CanBusManager(QObject *parent) : QObject(parent) {}
 
-bool CanBusManager::initCanDevice(const QString &plugin,
-                                  const QString &interfaceName) {
+bool CanBusManager::initCanDevice(
+    const QString &plugin, const QString &interfaceName,
+    QCanBusDevice::Filter::FormatFilter filterFormat) {
   QString error;
   m_canBusDevice =
       QCanBus::instance()->createDevice(plugin, interfaceName, &error);
@@ -23,6 +24,23 @@ bool CanBusManager::initCanDevice(const QString &plugin,
                      &CanBusManager::handleFramesReceived);
     QObject::connect(m_canBusDevice, &QCanBusDevice::framesWritten, this,
                      &CanBusManager::handleFramesWritten);
+    // set filters
+    QList<QCanBusDevice::Filter> filterList;
+    QCanBusDevice::Filter filter;
+    filter.frameId = 0x0;
+    filter.frameIdMask = 0x0;
+    filter.format = filterFormat;
+    filter.type = QCanBusFrame::DataFrame;
+    filterList << filter;
+
+    filter.frameId = 0x0;
+    filter.frameIdMask = 0x0;
+    filter.format = filterFormat;
+    filter.type = QCanBusFrame::InvalidFrame;
+    filterList.append(filter);
+
+    m_canBusDevice->setConfigurationParameter(QCanBusDevice::RawFilterKey,
+                                              QVariant::fromValue(filterList));
     emit canBusInitialised();
   }
   return true;
